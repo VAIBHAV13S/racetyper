@@ -21,7 +21,8 @@ const getProtectedData = async () => {
     if (logoutButton) logoutButton.style.display = "inline-block";
 
         try {
-            const response = await fetch("https://racetyper.onrender.com/dashboard", {
+            const apiBase = window.location.origin;
+            const response = await fetch(`${apiBase}/dashboard`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`
