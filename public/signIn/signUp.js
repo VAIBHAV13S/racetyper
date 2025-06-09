@@ -60,7 +60,7 @@ document.getElementById("sendButton").addEventListener("click", async () => {
     const apiBase = window.location.origin;
     
     try {
-        const response = await fetch(`${apiBase}/`, {
+        const response = await fetch(`${apiBase}/signup`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, email ,password})
