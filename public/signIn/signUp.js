@@ -58,16 +58,22 @@ document.getElementById("sendButton").addEventListener("click", async () => {
 
     // Use current domain for API calls (works for both local and production)
     const apiBase = window.location.origin;
-    const response = await fetch(`${apiBase}/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email ,password})
-    });
+    
+    try {
+        const response = await fetch(`${apiBase}/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email ,password})
+        });
 
-    const data = await response.json();
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
 
 
-    if (data.status === 'user already exist'){
+        if (data.status === 'user already exist'){
 
    document.getElementById('name').style.border = "2px solid red";
 
@@ -149,20 +155,29 @@ let otp = document.createElement('input')
         console.log(email)
 
         if (parseInt(otp.value, 10)== parseInt(data.otp_txt, 10)){
-            const verifyResponse = await fetch(`${apiBase}/verify-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({name, email, password})
-            });
+            try {
+                const verifyResponse = await fetch(`${apiBase}/verify-otp`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({name, email, password})
+                });
 
-            console.log("logged IN")
-    const data = await verifyResponse.json();
+                if (!verifyResponse.ok) {
+                    throw new Error(`HTTP error! status: ${verifyResponse.status}`);
+                }
 
-            console.log(data.status)
-            localStorage.setItem("token", data.token);
-            console.log(data.token)
+                console.log("logged IN")
+                const verifyData = await verifyResponse.json();
 
-window.location.href = '../mainpage/main.html';
+                console.log(verifyData.status)
+                localStorage.setItem("token", verifyData.token);
+                console.log(verifyData.token)
+
+                window.location.href = '../mainpage/main.html';
+            } catch (error) {
+                console.error('Error during OTP verification:', error);
+                errorTxt.textContent = 'Verification failed. Please try again.';
+            }
 
         }
         else{
@@ -172,6 +187,11 @@ window.location.href = '../mainpage/main.html';
         }
     }
 }
+
+    } catch (error) {
+        console.error('Error during signup:', error);
+        errorTxt.textContent = 'An error occurred. Please try again.';
+    }
 
 });
 

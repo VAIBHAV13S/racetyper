@@ -273,7 +273,7 @@ console.log(code);
 }
 
 
-app.post("/", (req, res) => {
+app.post("/", async (req, res) => {
 
     const { name, email, password } = req.body;
     console.log("Received Data:", req.body);  // Log request data
@@ -286,37 +286,41 @@ app.post("/", (req, res) => {
     const checkEmail = "SELECT * FROM users WHERE email = ?";
     const checkName= "SELECT * FROM users WHERE name = ?";
 
+    try {
+        // Check if name exists
+        const nameResult = await new Promise((resolve, reject) => {
+            connection.query(checkName, [name], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
 
-connection.query(checkName, [name], (err, result) => {
-    if (err) {
-        console.log("Database error");
-        return res.status(500).json({ error: "user error" });
+        if (nameResult.length > 0) {
+            console.log('user already exist');
+            return res.json({ status: "user already exist" });
+        }
+
+        // Check if email exists
+        const emailResult = await new Promise((resolve, reject) => {
+            connection.query(checkEmail, [email], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
+
+        if (emailResult.length > 0) {
+            console.log('email already exist');
+            return res.json({ status: "email already exist" });
+        }
+
+        // Send email and wait for completion
+        await sendEmail(email, "Your login verification code");
+        return res.json({ status: "success", otp_txt: otp });
+
+    } catch (error) {
+        console.error("Error in signup process:", error);
+        return res.status(500).json({ error: "Internal server error" });
     }
-
-    if (result.length > 0 ) {
-        console.log('user already exist')
-        return res.json({ status: "user already exist" });
-    }
-
-
-connection.query(checkEmail, [email], (err, result) => {
-    if (err) {
-        console.log("Database error");
-        return res.status(500).json({ error: "email error" });
-    }
-
-    if (result.length > 0 ) {
-        console.log('email already exist')
-        return res.json({ status: "email already exist" });
-    }
-
-
-    sendEmail(email, "Your login verification code");
-    return res.json({ status: "success", otp_txt: otp });
-
-})
-
-});
 })
 
 
@@ -381,28 +385,34 @@ connection.query(checkEmail, [email_text], (err, result) => {
 
 })
 
-app.post('/forgetpass',(req,res)=>{
+app.post('/forgetpass', async (req,res)=>{
 
     const{email_value} = req.body;
     
     
     const checkemail = "SELECT * FROM users WHERE email = ?";
 
+    try {
+        const result = await new Promise((resolve, reject) => {
+            connection.query(checkemail, [email_value], (err, result) => {
+                if (err) reject(err);
+                else resolve(result);
+            });
+        });
 
-connection.query(checkemail, [email_value], (err, result) => {
-    if (err) {
+        if(!result || result.length === 0 ){
+            console.log('email do not exist')
+            return res.json({ status: "Email not found" }); 
+        }
+
+        console.log('email exist')
+        await sendEmail(email_value, "Your login verification code");
+        return res.json({status: 'forgetPass', otp_text: otp})
+
+    } catch (error) {
+        console.error("Error in forget password process:", error);
         return res.status(500).json({ error: "Database error" });
     }
-    else if(!result||result.length === 0 ){
-        console.log('email do not exist')
-            return res.json({ status: "Email not found" }); 
-    }
-
-    console.log('email exist')
-sendEmail(email_value, "Your login verification code");
-    return res.json({status: 'forgetPass', otp_text: otp})
-
-})
 })
 
 
