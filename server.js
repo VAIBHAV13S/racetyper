@@ -273,7 +273,7 @@ console.log(code);
 }
 
 
-app.post("/", async (req, res) => {
+app.post("/signup", async (req, res) => {
 
     const { name, email, password } = req.body;
     console.log("Received Data:", req.body);  // Log request data
