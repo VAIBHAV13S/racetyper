@@ -86,7 +86,9 @@ container.appendChild(codeError);
         let email_value = email.value;
         console.log(email_value);
 
-        const response = await fetch("https://racetyper.onrender.com/forgetpass", {
+        // Use current domain for API calls
+        const apiBase = window.location.origin;
+        const response = await fetch(`${apiBase}/forgetpass`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email_value }),
@@ -187,7 +189,7 @@ confirm.disabled = true;
                             let password = pass.value;
                             let email_text = email.value;
 
-                            await fetch("https://racetyper.onrender.com/changePass", {
+                            await fetch(`${apiBase}/changePass`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ email_text, password }),
@@ -229,8 +231,9 @@ errorTxt.textContent = 'Password is not defined'
 }
 else{
 
-
-    const response = await fetch("https://racetyper.onrender.com/login", {
+    // Use current domain for API calls
+    const apiBase = window.location.origin;
+    const response = await fetch(`${apiBase}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email_value, password_value }),

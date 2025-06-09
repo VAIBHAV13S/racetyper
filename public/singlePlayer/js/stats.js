@@ -40,7 +40,8 @@ const getProtectedData = async () => {
 
         // Proceed with fetching protected data
         try {
-            const response = await fetch("https://racetyper.onrender.com/dashboard", {
+            const apiBase = window.location.origin;
+            const response = await fetch(`${apiBase}/dashboard`, {
                 method: "GET",
                 headers: {
                     "Authorization": `Bearer ${token}`

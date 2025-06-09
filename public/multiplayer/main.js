@@ -1,5 +1,8 @@
 let mistakeCount = 0
-const ws = new WebSocket('ws://localhost:3000');
+// Determine WebSocket URL based on current location
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHost = window.location.host;
+const ws = new WebSocket(`${wsProtocol}//${wsHost}`);
 
 let rank;
 const completedClients = new Set();
@@ -956,14 +959,13 @@ const getProtectedData = async () => {
 
   if (token) {
     if (signUpButton) signUpButton.style.display = "none";
-    if (logoutButton) logoutButton.style.display = "inline-block";
-
-    try {
-      const response = await fetch("https://racetyper.onrender.com/dashboard", {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+    if (logoutButton) logoutButton.style.display = "inline-block";    try {
+      const apiBase = window.location.origin;
+      const response = await fetch(`${apiBase}/dashboard`, {
+          method: "GET",
+          headers: {
+              "Authorization": `Bearer ${token}`
+          }
       });
 
       if (response.ok) {
