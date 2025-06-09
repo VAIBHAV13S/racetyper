@@ -56,7 +56,7 @@ document.getElementById("sendButton").addEventListener("click", async () => {
     password = document.getElementById("password").value;
 
 
-    const response = await fetch("http://localhost:3000/", {
+    const response = await fetch("https://racetyper.onrender.com/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email ,password})
@@ -147,7 +147,7 @@ let otp = document.createElement('input')
         console.log(email)
 
         if (parseInt(otp.value, 10)== parseInt(data.otp_txt, 10)){
-            const verifyResponse = await fetch("http://localhost:3000/verify-otp", {
+            const verifyResponse = await fetch("https://racetyper.onrender.com/verify-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({name, email, password})
