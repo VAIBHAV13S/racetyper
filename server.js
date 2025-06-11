@@ -1,30 +1,26 @@
 const websocket = require('ws');
+
 const express = require("express");
 const multer = require("multer");
-const bcrypt = require('bcryptjs');
-const bodyParser = require('body-parser');
+
+const bcrypt  = require('bcryptjs')
+
+const bodyParser = require('body-parser')
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const authenticateToken = require("./middleware/auth");
-const cors = require("cors");
-const nodemailer = require("nodemailer");
-const mysql = require("mysql2");
-const http = require('http');
-const path = require('path'); // Add this import
 
 dotenv.config();
 
+const cors = require("cors");
+const nodemailer = require("nodemailer");
+
+const mysql = require("mysql2");
+const http = require('http');
+
 const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Add static file serving for your frontend
-app.use(express.static('public'));
-
-// Serve index.html at root
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.use(cors()); // Enable CORS
+app.use(express.json()); // Enable JSON body parsing
 
 const server = http.createServer(app);
 
@@ -47,25 +43,6 @@ const connection = mysql.createConnection({
 });
 connection.connect(() => {
     console.log("Connected to MySQL");
-    
-    // Create users table if it doesn't exist
-    const createUsersTable = `
-        CREATE TABLE IF NOT EXISTS users (
-            id INT NOT NULL AUTO_INCREMENT,
-            name VARCHAR(255),
-            email VARCHAR(255) UNIQUE,
-            password VARCHAR(255),
-            PRIMARY KEY (id)
-        )
-    `;
-    
-    connection.query(createUsersTable, (err, result) => {
-        if (err) {
-            console.error("Error creating users table:", err);
-        } else {
-            console.log("Users table ready");
-        }
-    });
 });
 
 
@@ -273,7 +250,7 @@ console.log(code);
 }
 
 
-app.post("/signup", async (req, res) => {
+app.post("/", (req, res) => {
 
     const { name, email, password } = req.body;
     console.log("Received Data:", req.body);  // Log request data
@@ -286,41 +263,37 @@ app.post("/signup", async (req, res) => {
     const checkEmail = "SELECT * FROM users WHERE email = ?";
     const checkName= "SELECT * FROM users WHERE name = ?";
 
-    try {
-        // Check if name exists
-        const nameResult = await new Promise((resolve, reject) => {
-            connection.query(checkName, [name], (err, result) => {
-                if (err) reject(err);
-                else resolve(result);
-            });
-        });
 
-        if (nameResult.length > 0) {
-            console.log('user already exist');
-            return res.json({ status: "user already exist" });
-        }
-
-        // Check if email exists
-        const emailResult = await new Promise((resolve, reject) => {
-            connection.query(checkEmail, [email], (err, result) => {
-                if (err) reject(err);
-                else resolve(result);
-            });
-        });
-
-        if (emailResult.length > 0) {
-            console.log('email already exist');
-            return res.json({ status: "email already exist" });
-        }
-
-        // Send email and wait for completion
-        await sendEmail(email, "Your login verification code");
-        return res.json({ status: "success", otp_txt: otp });
-
-    } catch (error) {
-        console.error("Error in signup process:", error);
-        return res.status(500).json({ error: "Internal server error" });
+connection.query(checkName, [name], (err, result) => {
+    if (err) {
+        console.log("Database error");
+        return res.status(500).json({ error: "user error" });
     }
+
+    if (result.length > 0 ) {
+        console.log('user already exist')
+        return res.json({ status: "user already exist" });
+    }
+
+
+connection.query(checkEmail, [email], (err, result) => {
+    if (err) {
+        console.log("Database error");
+        return res.status(500).json({ error: "email error" });
+    }
+
+    if (result.length > 0 ) {
+        console.log('email already exist')
+        return res.json({ status: "email already exist" });
+    }
+
+
+    sendEmail(email, "Your login verification code");
+    return res.json({ status: "success", otp_txt: otp });
+
+})
+
+});
 })
 
 
@@ -385,34 +358,28 @@ connection.query(checkEmail, [email_text], (err, result) => {
 
 })
 
-app.post('/forgetpass', async (req,res)=>{
+app.post('/forgetpass',(req,res)=>{
 
     const{email_value} = req.body;
     
     
     const checkemail = "SELECT * FROM users WHERE email = ?";
 
-    try {
-        const result = await new Promise((resolve, reject) => {
-            connection.query(checkemail, [email_value], (err, result) => {
-                if (err) reject(err);
-                else resolve(result);
-            });
-        });
 
-        if(!result || result.length === 0 ){
-            console.log('email do not exist')
-            return res.json({ status: "Email not found" }); 
-        }
-
-        console.log('email exist')
-        await sendEmail(email_value, "Your login verification code");
-        return res.json({status: 'forgetPass', otp_text: otp})
-
-    } catch (error) {
-        console.error("Error in forget password process:", error);
+connection.query(checkemail, [email_value], (err, result) => {
+    if (err) {
         return res.status(500).json({ error: "Database error" });
     }
+    else if(!result||result.length === 0 ){
+        console.log('email do not exist')
+            return res.json({ status: "Email not found" }); 
+    }
+
+    console.log('email exist')
+sendEmail(email_value, "Your login verification code");
+    return res.json({status: 'forgetPass', otp_text: otp})
+
+})
 })
 
 
@@ -420,42 +387,47 @@ app.post('/forgetpass', async (req,res)=>{
 
 
 
-app.post("/login", async (req, res) => {
+app.post("/login", (req, res) => {
     const { email_value, password_value } = req.body;
     const checkemail = "SELECT * FROM users WHERE email = ?";
-    
-    if (!email_value || !password_value) {
+if (!email_value || !password_value) {
         return res.status(400).json({ error: "Email and password are required" });
     }
-    
-    connection.query(checkemail, [email_value], async (err, result) => {
-        if (err) {
-            return res.status(500).json({ error: "Database error" });
-        }
-        if (!result || result.length === 0) {
-            console.log('email do not exist')
+connection.query(checkemail, [email_value], (err, result) => {
+    if (err) {
+        return res.status(500).json({ error: "Database error" });
+    }
+    else if(!result||result.length === 0 ){
+        console.log('email do not exist')
             return res.json({ status: "Email not found" }); 
-        }
+    }
 
-        let user = result[0];
 
-        // Fixed: Added await for async bcrypt.compare
-        const isPasswordValid = await bcrypt.compare(password_value, user.password);
-        
-        if (!isPasswordValid) {
-            console.log('incorrect password')
-            return res.json({ status: "Incorrect password" });
-        }
+    let user = result[0];
 
-        const payload = {
-            name: user.name,      
-            email: user.email, 
-        };
-        
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.json({ status: 'Login successful', token });
-    });
-});
+    if(!bcrypt.compare(password_value, user.password)){
+
+        console.log('incorrect password')
+        return res.json({ status: "Incorrect password" });
+
+    }
+
+    console.log('JWT_SECRET:', process.env.JWT_SECRET);
+ const payload = {
+  name: user.name,      
+  email: user.email, 
+};
+console.log('User:', user);
+const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+console.log('Generated Token:', token);
+
+res.json({ status: 'Login successful', token });
+
+
+
+
+})
+})
 
 app.get("/dashboard", authenticateToken, (req, res) => {
     
