@@ -86,9 +86,7 @@ container.appendChild(codeError);
         let email_value = email.value;
         console.log(email_value);
 
-        // Use current domain for API calls
-        const apiBase = window.location.origin;
-        const response = await fetch(`${apiBase}/forgetpass`, {
+        const response = await fetch("https://typeracer-7s2h.onrender.com/forgetpass", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email_value }),
@@ -189,7 +187,7 @@ confirm.disabled = true;
                             let password = pass.value;
                             let email_text = email.value;
 
-                            await fetch(`${apiBase}/changePass`, {
+                            await fetch("https://typeracer-7s2h.onrender.com/changePass", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ email_text, password }),
@@ -231,9 +229,8 @@ errorTxt.textContent = 'Password is not defined'
 }
 else{
 
-    // Use current domain for API calls
-    const apiBase = window.location.origin;
-    const response = await fetch(`${apiBase}/login`, {
+
+    const response = await fetch("https://typeracer-7s2h.onrender.com/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email_value, password_value }),

@@ -1,31 +1,34 @@
 const websocket = require('ws');
-
 const express = require("express");
 const multer = require("multer");
-
-const bcrypt  = require('bcryptjs')
-
-const bodyParser = require('body-parser')
+const bcrypt = require('bcryptjs');
+const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
 const authenticateToken = require("./middleware/auth");
+const cors = require("cors");
+const nodemailer = require("nodemailer");
+const mysql = require("mysql2");
+const http = require('http');
+const path = require('path'); // Add this import
 
 dotenv.config();
 
-const cors = require("cors");
-const nodemailer = require("nodemailer");
-
-const mysql = require("mysql2");
-const http = require('http');
-
 const app = express();
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Enable JSON body parsing
+app.use(cors());
+app.use(express.json());
+
+// Add static file serving for your frontend
+app.use(express.static('public'));
+
+// Serve index.html at root
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const server = http.createServer(app);
 
-const wss = new websocket.Server({server});
-
+const wss = new websocket.Server({ server });
 
 
 app.use(bodyParser.json({ limit: "50mb" }));
@@ -34,18 +37,46 @@ app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
 
 
-const connection = mysql.createConnection({
+const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
+    port: process.env.DB_PORT || 3306,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    flags: ['+MAX_ALLOWED_PACKET']
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
 });
-connection.connect(() => {
-    console.log("Connected to MySQL");
+
+// Optionally, check table existence on startup
+pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+        id INT NOT NULL AUTO_INCREMENT,
+        name VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        password VARCHAR(255),
+        PRIMARY KEY (id)
+    )
+`, (err) => {
+    if (err) console.error("Error creating users table:", err);
+    else console.log("Users table ready");
 });
 
 
+
+
+
+// Add connection test
+pool.getConnection((err, connection) => {
+    if (err) {
+    console.error("Database connection failed:", err);
+    process.exit(1); // Exit if DB connection fails
+  }
+  console.log("Database connected successfully");
+  connection.release();
+});
 
 const transporter = nodemailer.createTransport({
 host: process.env.SMTP_HOST,
@@ -249,63 +280,63 @@ console.log(code);
     }
 }
 
-
-app.post("/", (req, res) => {
-
+app.post("/check", (req, res) => {
     const { name, email, password } = req.body;
-    console.log("Received Data:", req.body);  // Log request data
-    console.log("Extracted Values:", name, email, password);
+
+    console.log("otp made")
 
     if (!name || !email || !password) {
         return res.status(400).json({ error: "Missing fields" });
     }
 
+    const checkDBQuery = "SHOW DATABASES LIKE ?";
+    const checkName = "SELECT * FROM users WHERE name = ?";
     const checkEmail = "SELECT * FROM users WHERE email = ?";
-    const checkName= "SELECT * FROM users WHERE name = ?";
+
+        // Now check username
+        pool.query(checkName, [name], (err, nameResult) => {
+            if (err) {
+                console.log("Database error");
+                return res.status(500).json({ error: "user error" });
+            }
+
+            if (nameResult.length > 0) {
+                console.log('user already exist');
+                return res.json({ status: "user already exist" });
+            }
+
+            // Now check email
+            pool.query(checkEmail, [email], (err, emailResult) => {
+                if (err) {
+                    console.log("Database error");
+                    return res.status(500).json({ error: "email error" });
+                }
+
+                if (emailResult.length > 0) {
+                    console.log('email already exist');
+                    return res.json({ status: "email already exist" });
+                }
+
+                // Success, send OTP
+                
+                console.log("otp sent")
+                sendEmail(email, "Your login verification code");
+                return res.json({ status: "success", otp_txt: otp });
+            });
+        });
+    });
 
 
-connection.query(checkName, [name], (err, result) => {
-    if (err) {
-        console.log("Database error");
-        return res.status(500).json({ error: "user error" });
-    }
 
-    if (result.length > 0 ) {
-        console.log('user already exist')
-        return res.json({ status: "user already exist" });
-    }
-
-
-connection.query(checkEmail, [email], (err, result) => {
-    if (err) {
-        console.log("Database error");
-        return res.status(500).json({ error: "email error" });
-    }
-
-    if (result.length > 0 ) {
-        console.log('email already exist')
-        return res.json({ status: "email already exist" });
-    }
-
-
-    sendEmail(email, "Your login verification code");
-    return res.json({ status: "success", otp_txt: otp });
-
-})
-
-});
-})
-
-
-app.post("/verify-otp", async(req, res) => {
+app.post("/verify", async(req, res) => {
     console.log("hello post")
-    const { name, email, password } = req.body;
+    const {verify, name, email, password } = req.body;
 const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
 
 const sql = "INSERT INTO users (name, email, password) VALUES (?, ?, ?)";
-connection.query(sql, [name,email, hashedPassword], (err, result) => {
+pool.query(sql, [name,email, hashedPassword], (err, result) => {
     if (err) {
         console.error("Error inserting data:", err);
         return res.status(500).json({ error: "Database error" });
@@ -334,7 +365,7 @@ const updatePassword = "UPDATE users SET password = ? WHERE email = ?";
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-connection.query(checkEmail, [email_text], (err, result) => {
+pool.query(checkEmail, [email_text], (err, result) => {
     if (err) {
         console.log("Database error");
         return res.status(500).json({ error: "Database error" });
@@ -344,7 +375,7 @@ connection.query(checkEmail, [email_text], (err, result) => {
         return res.json({ status: "Email not found" });
     }
 
-    connection.query(updatePassword, [hashedPassword, email_text], (err, updateResult) => {
+    pool.query(updatePassword, [hashedPassword, email_text], (err, updateResult) => {
         if (err) {
             console.log("Error updating password");
             return res.status(500).json({ error: "Failed to update password" });
@@ -366,7 +397,7 @@ app.post('/forgetpass',(req,res)=>{
     const checkemail = "SELECT * FROM users WHERE email = ?";
 
 
-connection.query(checkemail, [email_value], (err, result) => {
+pool.query(checkemail, [email_value], (err, result) => {
     if (err) {
         return res.status(500).json({ error: "Database error" });
     }
@@ -387,47 +418,42 @@ sendEmail(email_value, "Your login verification code");
 
 
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
     const { email_value, password_value } = req.body;
     const checkemail = "SELECT * FROM users WHERE email = ?";
-if (!email_value || !password_value) {
+    
+    if (!email_value || !password_value) {
         return res.status(400).json({ error: "Email and password are required" });
     }
-connection.query(checkemail, [email_value], (err, result) => {
-    if (err) {
-        return res.status(500).json({ error: "Database error" });
-    }
-    else if(!result||result.length === 0 ){
-        console.log('email do not exist')
+    
+    pool.query(checkemail, [email_value], async (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: "Database error" });
+        }
+        if (!result || result.length === 0) {
+            console.log('email do not exist')
             return res.json({ status: "Email not found" }); 
-    }
+        }
 
+        let user = result[0];
 
-    let user = result[0];
+        // Fixed: Added await for async bcrypt.compare
+        const isPasswordValid = await bcrypt.compare(password_value, user.password);
+        
+        if (!isPasswordValid) {
+            console.log('incorrect password')
+            return res.json({ status: "Incorrect password" });
+        }
 
-    if(!bcrypt.compare(password_value, user.password)){
-
-        console.log('incorrect password')
-        return res.json({ status: "Incorrect password" });
-
-    }
-
-    console.log('JWT_SECRET:', process.env.JWT_SECRET);
- const payload = {
-  name: user.name,      
-  email: user.email, 
-};
-console.log('User:', user);
-const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
-console.log('Generated Token:', token);
-
-res.json({ status: 'Login successful', token });
-
-
-
-
-})
-})
+        const payload = {
+            name: user.name,      
+            email: user.email, 
+        };
+        
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.json({ status: 'Login successful', token });
+    });
+});
 
 app.get("/dashboard", authenticateToken, (req, res) => {
     
