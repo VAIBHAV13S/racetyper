@@ -56,24 +56,16 @@ document.getElementById("sendButton").addEventListener("click", async () => {
     password = document.getElementById("password").value;
 
 
-    // Use current domain for API calls (works for both local and production)
-    const apiBase = window.location.origin;
-    
-    try {
-        const response = await fetch(`${apiBase}/signup`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email ,password})
-        });
+    const response = await fetch("https://typeracer-7s2h.onrender.com/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email ,password})
+    });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+    const data = await response.json();
 
 
-        if (data.status === 'user already exist'){
+    if (data.status === 'user already exist'){
 
    document.getElementById('name').style.border = "2px solid red";
 
@@ -119,6 +111,7 @@ else if(password== ''){
 
 
 else{
+    console.log("otp made")
    document.getElementById('name').style.border = "2px solid green";
 
    document.getElementById('email').style.border = "2px solid green";
@@ -153,31 +146,24 @@ let otp = document.createElement('input')
         console.log(data.otp_txt)
         console.log(name)
         console.log(email)
+        
 
         if (parseInt(otp.value, 10)== parseInt(data.otp_txt, 10)){
-            try {
-                const verifyResponse = await fetch(`${apiBase}/verify-otp`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({name, email, password})
-                });
+            let verify = "status"
+            const verifyResponse = await fetch("https://typeracer-7s2h.onrender.com/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({verify, name, email, password})
+            });
 
-                if (!verifyResponse.ok) {
-                    throw new Error(`HTTP error! status: ${verifyResponse.status}`);
-                }
+            console.log("logged IN")
+    const data = await verifyResponse.json();
 
-                console.log("logged IN")
-                const verifyData = await verifyResponse.json();
+            console.log(data.status)
+            localStorage.setItem("token", data.token);
+            console.log(data.token)
 
-                console.log(verifyData.status)
-                localStorage.setItem("token", verifyData.token);
-                console.log(verifyData.token)
-
-                window.location.href = '../mainpage/main.html';
-            } catch (error) {
-                console.error('Error during OTP verification:', error);
-                errorTxt.textContent = 'Verification failed. Please try again.';
-            }
+window.location.href = '../mainpage/main.html';
 
         }
         else{
@@ -187,11 +173,6 @@ let otp = document.createElement('input')
         }
     }
 }
-
-    } catch (error) {
-        console.error('Error during signup:', error);
-        errorTxt.textContent = 'An error occurred. Please try again.';
-    }
 
 });
 
